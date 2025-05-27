@@ -1,18 +1,21 @@
-from ytmusicapi import YTMusic
+from ytmusicapi import YTMusic, OAuthCredentials
 from dotenv import load_dotenv
 from requests import post, get
 import json
 import os
+import sys
 import base64
 
 load_dotenv()
 
-client_id = os.getenv("CLIENT_ID")
-client_secret = os.getenv ("CLIENT_SECRET")
+spotify_client_id = os.getenv("SPOTIFY_CLIENT_ID")
+spotify_client_secret = os.getenv ("SPOTIFY_CLIENT_SECRET")
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 
 
 def get_token (): 
-    auth_string = client_id + ":" + client_secret
+    auth_string = spotify_client_id + ":" + spotify_client_secret
     auth_bytes = auth_string.encode("utf8")
     auth_base64 = str (base64. b64encode(auth_bytes), "utf-8")
 
@@ -72,15 +75,34 @@ def add_to_yt(song):
 
 
 if __name__ == "__main__":
+    # Check for Spotify credentials
+    if not spotify_client_id or not spotify_client_secret:
+        print("SPOTIFY_CLIENT_ID or SPOTIFY_CLIENT_SECRET not set in environment variables.")
+        sys.exit()
+
     token = get_token()
+    if not token:
+        print("Failed to retrieve Spotify token. Please check your SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET.")
+        sys.exit()
+        
     link = input("Paste spotify link here: ")
     name, playlist = search_playlist(link)
     
     songs_list = [ str(song["track"]["name"] +" by "+ song["track"]["artists"][0]["name"]) for song in playlist]
     print(len(songs_list),"Songs to be transferred")
     
+    # Check for oauth.json and Google credentials
+    if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+        print("GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not set in environment variables.")
+        sys.exit()
+
+    if not os.path.exists('oauth.json'):
+        print("oauth.json not found. Please run 'ytmusicapi oauth' to generate it.")
+        sys.exit()
+
     #yt
-    yt = YTMusic('oauth.json')
+    google_creds = OAuthCredentials(client_id=GOOGLE_CLIENT_ID, client_secret=GOOGLE_CLIENT_SECRET)
+    yt = YTMusic('oauth.json', oauth_credentials=google_creds)
     playlistId = yt.create_playlist(name, 'playlist '+name+' transferred from Spotify')
 
     print("PLAYLIST: ",name,"\n")
